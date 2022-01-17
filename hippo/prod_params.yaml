@@ -1,0 +1,100 @@
+config:
+    # This tells driftscan what you want it to do
+    beamtransfers:      Yes     # Generate beam transfer matrices
+    kltransform:        Yes     # Generate KL filter
+    psfisher:           Yes     # Generate PSE products
+
+    output_directory:   ./bt_matrices # Product directory. Beam transfer matrices and associated products will go here.
+
+telescope:
+    type:
+        # Point to the telescope class we want to use
+        class:  HIRAXSurvey
+        module: hirax_transfer.core
+
+    # Do 3 pointings of the array spanning declinations +-5 deg. off zenith
+    pointing_start: -5
+    pointing_stop: 5
+    npointings: 3
+
+    hirax_spec:
+        #  Specify the frequency channels
+        freq_lower: 600.
+        freq_upper: 650
+        num_freq: 16
+        freq_mode: edge         # This means freq_{upper,lower} specify channel edges
+
+        auto_correlations: No   # Don't use single dish data, only interferometer mode.
+        tsys_flat: 50.0
+
+        dish_width: 6.0         # In metres, this is only used for the minimum l and m calculation
+
+        # Specify limits on m and l to use
+        lmax: 200
+        mmax: 200
+
+        # When noise weighting is needed, will assume an integration
+        # time of this many days.
+        ndays: 733 
+
+        # Set the array layout
+        hirax_layout: # See hirax_transfer.layouts
+            type: square_grid
+            spacing: 9.0        # Distance between dish centres in metres
+            grid_size: 3        # ie. 3x3 grid
+
+            # Can alternatively read arbitrary layout from a text file with
+            # columns: EW offset [m], NS offset [m] by doing:
+            
+            # type: file
+            # filename: layout.txt
+
+        hirax_beam: # See hirax_transfer.beams
+            # Gaussian beam with FWHM (intensity) of fwhm_factor*lambda/diameter
+            type: gaussian
+            diameter: 6.        # In metres
+            fwhm_factor: 1.0
+
+
+kltransform:
+  # See driftscan.drift.core.{kltransform.py,DoubleKL.py}
+
+  # This is a trivial filter that passes through all modes
+    - type: KLTransform
+      name: kl_0thresh_fg_0thresh
+      inverse: Yes
+      threshold: 0
+      use_thermal: Yes
+      use_foregrounds: No
+      use_polarised: No
+
+  # This is a more realistic one. With a larger sim, higher thresholds would be better
+    - type: DoubleKL
+      name: dk_1thresh_fg_3thresh #  This is a name to give to the filter, will be referenced by PSE
+      inverse: Yes  
+      threshold: 1            # Second stage Signal/(FG+noise) filter
+      use_thermal: Yes
+      use_foregrounds: Yes
+      use_polarised: Yes
+      foreground_threshold: 3 # First stage Signal/FG filter
+
+
+psfisher:
+  # See driftscan.drift.core.{psestimation.py}
+    -   type:           MonteCarlo                 # We use the MonteCarlo PS fisher matrix estimator
+        name:           psmc_kl_1thresh_fg_3thresh # A name to give this PSE product
+        klname:         dk_1thresh_fg_3thresh
+        threshold:      0
+        # Specify the 2d PS bands. This is very coarse for this small scale example.
+        bandtype:       cartesian
+        kpar_bands:
+        -   spacing:    linear
+            start:      0.0
+            stop:       0.30
+            num:        3
+        
+        kperp_bands:
+        -   spacing:    linear
+            start:      0.0
+            stop:       0.15
+            num:        5

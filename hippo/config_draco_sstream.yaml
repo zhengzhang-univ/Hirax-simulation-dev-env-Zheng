@@ -1,0 +1,38 @@
+pipeline:
+    tasks:
+        -   type:       draco.core.task.SetMPILogging
+
+          # Load the product manager object from our driftscan run
+        -   type:       draco.core.io.LoadProductManager
+            out:        pm
+            params:
+              product_directory:  "./bt_matrices"
+
+        -   type:       draco.core.io.LoadMaps
+            out:        imap
+            # Load maps. Each map in this list will be added together. Here we'll sum a 21cm and galactic FG map
+            params:
+                maps:
+                  - files:
+                    - "./cora_sim_21cm_nside_128.h5"
+                    - "./cora_sim_galaxy_nside_128.h5"
+
+        -   type:       draco.synthesis.stream.SimulateSidereal
+          # Generate a SiderealStream
+            requires:   pm
+            in:         imap
+            out:        sstream
+            params:
+              # Save the output in the defined container format for SiderealStream
+              save:   Yes
+              output_root: './draco_out/sidereal_'
+
+        -   type:       draco.synthesis.noise.GaussianNoise
+            requires:   pm
+            in:         sstream
+            out:        sstream_wnoise
+            params:
+              recv_temp: 50
+              ndays: 733
+              save:   Yes
+              output_root: './draco_out/sidereal_wnoise_'
